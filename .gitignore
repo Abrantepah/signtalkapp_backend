@@ -1,0 +1,19 @@
+# Ignore Python virtual environment directory
+env/
+
+# Ignore the TextAndAudio2Sign folder under base (relative to repo root)
+base/TextAndAudio2Sign/
+
+# Common Python ignores
+__pycache__/
+*.pyc
+
+# Project DB
+db.sqlite3
+
+# Windows-specific
+Thumbs.db
+ehthumbs.db
+
+# Note: absolute windows path provided by user for reference:
+# C:\Users\Administrator\Desktop\projects\signtalkapp_backend\base\TextAndAudio2Sign
