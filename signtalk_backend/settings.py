@@ -29,10 +29,7 @@ CORS_ALLOW_ALL_ORIGINS = False  # better security
 
 CORS_ALLOWED_ORIGINS = [
     "https://signtalkgh.com",
-<<<<<<< HEAD
-=======
     "https://www.signtalkgh.com",
->>>>>>> 67cea46 (with text to sign)
     "http://localhost:58324",
     "http://127.0.0.1:58324",
     "http://localhost:3000",  # for local dev
@@ -40,10 +37,7 @@ CORS_ALLOWED_ORIGINS = [
 
 ALLOWED_HOSTS = [
     "signtalkgh.com",
-<<<<<<< HEAD
-=======
     "www.signtalkgh.com",
->>>>>>> 67cea46 (with text to sign)
     "127.0.0.1",
     "localhost",
 ]
@@ -63,8 +57,6 @@ INSTALLED_APPS = [
     'corsheaders'
 ]
 
-<<<<<<< HEAD
-=======
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -72,7 +64,6 @@ REST_FRAMEWORK = {
 }
 
 
->>>>>>> 67cea46 (with text to sign)
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
