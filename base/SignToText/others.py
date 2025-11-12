@@ -1,16 +1,27 @@
-# general_conversion.py
 import cv2
+import os
 import numpy as np
 import pickle
 import mediapipe as mp
 from sklearn.preprocessing import MinMaxScaler
-import os
+from torchvision import models, transforms
+import torch
+import torch.nn as nn
+from PIL import Image
 
+# ============================================================
+# CONFIG
+# ============================================================
 FRAME_COUNT = 10
 POSE_COUNT = 33
 HAND_COUNT = 21
+EXPECTED_FEATURE_SIZE = 2582
 
-# MediaPipe holistic setup (load once)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# ============================================================
+# MediaPipe Holistic (load once)
+# ============================================================
 mp_holistic = mp.solutions.holistic
 holistic = mp_holistic.Holistic(
     static_image_mode=False,
@@ -21,10 +32,32 @@ holistic = mp_holistic.Holistic(
     min_tracking_confidence=0.5
 )
 
-# Base folder where category-specific models live
+# ============================================================
+# CNN Models (load once)
+# ============================================================
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+])
+
+resnet = models.resnet50(weights=None)
+resnet.load_state_dict(torch.load(r"C:\Users\Administrator\.cache\torch\hub\checkpoints\resnet50-0676ba61.pth"))
+resnet.fc = nn.Identity()
+resnet.to(device).eval()
+
+efficientnet = models.efficientnet_b0(weights=None)
+efficientnet.load_state_dict(torch.load(r"C:\Users\Administrator\.cache\torch\hub\checkpoints\efficientnet_b0_rwightman-7f5810bc.pth"))
+efficientnet.classifier = nn.Identity()
+efficientnet.to(device).eval()
+
+
+# ============================================================
+# CATEGORY → MODEL & ENCODER MAPPER
+# ============================================================
 BASE_PATH = os.path.join(os.path.dirname(__file__), "xgboost")
 
-# Map each category to its model and encoder filenames
 CATEGORY_MODELS = {
     "laboratory":      ("xgboost_lab_model.pkl", "label_encoder_lab.pkl"),
     "child_welfare":   ("xgboost_cw_model.pkl", "label_encoder_cw.pkl"),
@@ -34,72 +67,102 @@ CATEGORY_MODELS = {
     "opd":             ("xgboost_opd_model.pkl", "label_encoder_opd.pkl"),
 }
 
-# -----------------------
-# Keypoint extraction
-# -----------------------
+# ============================================================
+# KEYPOINT EXTRACTION
+# ============================================================
 def extract_keypoints(results):
-    if results is None:
-        return np.zeros(POSE_COUNT*4 + 2*HAND_COUNT*3, dtype=np.float32)
+    pose = np.array([[lm.x, lm.y, lm.z, lm.visibility]
+                     for lm in results.pose_landmarks.landmark]).flatten() \
+        if results.pose_landmarks else np.zeros(POSE_COUNT * 4, dtype=np.float32)
 
-    pose = np.array([[lm.x, lm.y, lm.z, lm.visibility] for lm in results.pose_landmarks.landmark]).flatten() \
-        if results.pose_landmarks else np.zeros(POSE_COUNT*4, dtype=np.float32)
+    lh = np.array([[lm.x, lm.y, lm.z]
+                   for lm in results.left_hand_landmarks.landmark]).flatten() \
+        if results.left_hand_landmarks else np.zeros(HAND_COUNT * 3, dtype=np.float32)
 
-    lh = np.array([[lm.x, lm.y, lm.z] for lm in results.left_hand_landmarks.landmark]).flatten() \
-        if results.left_hand_landmarks else np.zeros(HAND_COUNT*3, dtype=np.float32)
-
-    rh = np.array([[lm.x, lm.y, lm.z] for lm in results.right_hand_landmarks.landmark]).flatten() \
-        if results.right_hand_landmarks else np.zeros(HAND_COUNT*3, dtype=np.float32)
+    rh = np.array([[lm.x, lm.y, lm.z]
+                   for lm in results.right_hand_landmarks.landmark]).flatten() \
+        if results.right_hand_landmarks else np.zeros(HAND_COUNT * 3, dtype=np.float32)
 
     return np.concatenate([pose, lh, rh]).astype(np.float32)
 
-# -----------------------
-# Convert frames to vector
-# -----------------------
+# ============================================================
+# CNN FEATURE EXTRACTION
+# ============================================================
+def extract_cnn_features(frame_files):
+    imgs = []
+    for f in frame_files:
+        try:
+            img = Image.open(f).convert("RGB")
+            imgs.append(transform(img))
+        except:
+            pass
+
+    if len(imgs) == 0:
+        return np.zeros(1), np.zeros(1)
+
+    imgs = torch.stack(imgs).to(device)
+
+    with torch.no_grad():
+        res_feats = resnet(imgs).mean(dim=0).cpu().numpy()
+        eff_feats = efficientnet(imgs).mean(dim=0).cpu().numpy()
+
+    # Reduce dimensionality like training
+    return np.array([res_feats.mean()]), np.array([eff_feats.mean()])
+
+# ============================================================
+# FRAMES → FEATURE VECTOR
+# ============================================================
 def process_frames_to_vector(frames):
-    seq = []
-    for frame in frames:
+    temp_dir = "temp_cnn_frames"
+    os.makedirs(temp_dir, exist_ok=True)
+
+    keypoints_seq = []
+    frame_files = []
+
+    indexes = np.linspace(0, len(frames)-1, FRAME_COUNT, dtype=int)
+
+    for i, idx in enumerate(indexes):
+        frame = frames[idx]
+
+        # Save CNN frame
+        save_path = os.path.join(temp_dir, f"f{i}.png")
+        cv2.imwrite(save_path, frame)
+        frame_files.append(save_path)
+
+        # Extract MediaPipe landmarks
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = holistic.process(rgb)
-        seq.append(extract_keypoints(results))
+        keypoints_seq.append(extract_keypoints(results))
 
-    if len(seq) > FRAME_COUNT:
-        indices = np.linspace(0, len(seq)-1, FRAME_COUNT, dtype=int)
-        seq = [seq[i] for i in indices]
-    while len(seq) < FRAME_COUNT:
-        seq.append(np.zeros_like(seq[0]))
-
-    full_vec = np.concatenate(seq)
+    # Normalize keypoints
+    kp_vec = np.concatenate(keypoints_seq)
     scaler = MinMaxScaler()
-    normalized = scaler.fit_transform(full_vec.reshape(-1, 1)).flatten()
-    return normalized.reshape(1, -1)
+    kp_norm = scaler.fit_transform(kp_vec.reshape(-1, 1)).flatten()
 
-# -----------------------
-# Main pipeline
-# -----------------------
+    # CNN deep features
+    res_feats, eff_feats = extract_cnn_features(frame_files)
+
+    final_vec = np.concatenate([kp_norm, res_feats, eff_feats]).reshape(1, -1)
+
+    return final_vec
+
+# ============================================================
+# MAIN PREDICTION PIPELINE
+# ============================================================
 def predict_translation_from_video(video_path, category: str):
-    """
-    Takes a video file and category, loads the appropriate model & label encoder,
-    and returns the predicted sign label.
-    """
     if category not in CATEGORY_MODELS:
         raise ValueError(f"Unknown category: {category}")
 
     model_file, encoder_file = CATEGORY_MODELS[category]
 
-    # Load model & encoder
-    model_path = os.path.join(BASE_PATH, model_file)
-    encoder_path = os.path.join(BASE_PATH, encoder_file)
-
-    with open(model_path, "rb") as f:
+    # Load model + encoder
+    with open(os.path.join(BASE_PATH, model_file), "rb") as f:
         model = pickle.load(f)
-    with open(encoder_path, "rb") as f:
+    with open(os.path.join(BASE_PATH, encoder_file), "rb") as f:
         label_encoder = pickle.load(f)
 
-    # Read video frames
+    # Load video
     cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError(f"Cannot open video: {video_path}")
-
     frames = []
     while True:
         ret, frame = cap.read()
@@ -108,17 +171,17 @@ def predict_translation_from_video(video_path, category: str):
         frames.append(frame)
     cap.release()
 
-    if not frames:
-        raise ValueError("No frames extracted from video.")
+    if len(frames) == 0:
+        return "[Error: No frames extracted]"
 
-    # Convert frames to model-ready vector
+    # Convert frames → feature vector
     X = process_frames_to_vector(frames)
 
-    # Predict
-    pred_idx = model.predict(X)
-    try:
-        predicted_label = label_encoder.inverse_transform(pred_idx)[0]
-    except Exception:
-        predicted_label = str(int(pred_idx[0]))
+    # Shape validation
+    if X.shape[1] != EXPECTED_FEATURE_SIZE:
+        return f"[Shape mismatch: Expected {EXPECTED_FEATURE_SIZE}, got {X.shape[1]}]"
 
-    return predicted_label
+    pred_idx = model.predict(X)
+    label = label_encoder.inverse_transform(pred_idx)[0]
+
+    return label

@@ -2,7 +2,13 @@
 env/
 
 # Ignore the TextAndAudio2Sign folder under base (relative to repo root)
+<<<<<<< HEAD
 base/TextAndAudio2Sign/
+=======
+base/TextAndAudio2Sign/models/
+base/TextAndAudio2Sign/__pycache__/
+
+>>>>>>> 67cea46 (with text to sign)
 
 # Common Python ignores
 __pycache__/

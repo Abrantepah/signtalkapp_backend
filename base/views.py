@@ -5,6 +5,12 @@ from rest_framework import status
 import os, tempfile
 from pathlib import Path
 from django.conf import settings
+<<<<<<< HEAD
+=======
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes
+
+>>>>>>> 67cea46 (with text to sign)
 
 #import the necessary modules from base
 from base.TextAndAudio2Sign import text_2_sign, audio, search_video
@@ -12,9 +18,18 @@ from base.SignToText import general_conversation, others
 
 
 
+<<<<<<< HEAD
 #Text and Audio to Sign API
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
+=======
+
+#Text and Audio to Sign API
+@api_view(["POST"])
+# @parser_classes([MultiPartParser, FormParser, JSONParser])
+# @permission_classes([IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser, JSONParser])
+>>>>>>> 67cea46 (with text to sign)
 def text_and_audio_to_sign_api(request):
     """
     API endpoint: Receives text or audio and returns sign video paths.
@@ -109,7 +124,13 @@ def text_and_audio_to_sign_api(request):
 
 # Sign to text API
 @api_view(["POST"])
+<<<<<<< HEAD
 @parser_classes([MultiPartParser, FormParser])
+=======
+# @parser_classes([MultiPartParser, FormParser])
+# @permission_classes([IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser])
+>>>>>>> 67cea46 (with text to sign)
 def sign_to_text_api(request):
     """
     API endpoint: Receives a sign language video and returns the translated text.
