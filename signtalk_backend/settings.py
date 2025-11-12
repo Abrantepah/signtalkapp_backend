@@ -32,7 +32,9 @@ CORS_ALLOWED_ORIGINS = [
     "https://www.signtalkgh.com",
     "http://localhost:58324",
     "http://127.0.0.1:58324",
-    "http://localhost:3000",  # for local dev
+    "http://localhost:3000",
+    "http://78.46.100.152"
+    
 ]
 
 ALLOWED_HOSTS = [
@@ -40,6 +42,7 @@ ALLOWED_HOSTS = [
     "www.signtalkgh.com",
     "127.0.0.1",
     "localhost",
+    "78.46.100.152",
 ]
 
 

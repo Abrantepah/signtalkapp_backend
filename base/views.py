@@ -40,7 +40,7 @@ def text_and_audio_to_sign_api(request):
                 tmpfile_path = tmpfile.name
 
             # process audio → get transcription + sentence ids
-            transcribed_text, video_ids = audio.process_audio_file(tmpfile_path)
+            transcribed_text = audio.process_audio_file(tmpfile_path)
 
             # cleanup
             os.remove(tmpfile_path)
@@ -86,15 +86,17 @@ def text_and_audio_to_sign_api(request):
                 if video_abs_path else None
             )
             avatar_video_url.append(
-                settings.MEDIA_URL + "sentence_avatar/" + os.path.basename(avatar_video_abs_path)
-                if avatar_video_abs_path else None
-            )
+                settings.MEDIA_URL + "sentence_avatar/" + os.path.basename(video_abs_path)
+                if video_abs_path else None
+            ) 
 
         # 6️⃣ Word-by-word mode
         elif mode == "word-by-word":
 
             labels = videos
             video_abs_path = search_video.search_word_videos_by_labels(word_dataset_path, labels, output_video_path)
+
+            # print(f"video abs path for views: {video_abs_path}")
 
             if video_abs_path:
                 avatar_video_url.append(settings.MEDIA_URL + "created_avatar/" + os.path.basename(video_abs_path))

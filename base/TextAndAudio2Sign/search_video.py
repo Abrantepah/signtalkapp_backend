@@ -81,7 +81,7 @@ def get_video_properties(video_path):
         fps_val = eval(fps) if '/' in fps else float(fps)
         return int(width), int(height), codec.strip(), fps_val
     except Exception as e:
-        print(f"Could not read video properties for {video_path}: {e}")
+        # print(f"Could not read video properties for {video_path}: {e}")
         return None
 
 
@@ -105,14 +105,15 @@ def standardize_video(input_path, output_path, width=640, height=480, fps=30):
     try:
         subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)  # 20 sec limit
     except subprocess.TimeoutExpired:
-        print(f"Timeout: FFmpeg took too long on {input_path}")
+        return
+        # print(f"Timeout: FFmpeg took too long on {input_path}")
 
 
 def fast_concatenate_videos(video_paths, output_path):
     """Super-fast concatenation using FFmpeg (no re-encoding)."""
     valid_videos = [p for p in video_paths if p and os.path.exists(p)]
     if not valid_videos:
-        print("No valid videos found to merge.")
+        # print("No valid videos found to merge.")
         return None
 
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as list_file:
@@ -123,7 +124,7 @@ def fast_concatenate_videos(video_paths, output_path):
     cmd = ['ffmpeg', '-f', 'concat', '-safe', '0', '-i', list_path, '-c', 'copy', output_path]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     os.remove(list_path)
-    print(f"Fast merged video saved to: {output_path}")
+    # print(f"Fast merged video saved to: {output_path}")
     return output_path
 
 
@@ -131,14 +132,14 @@ def concatenate_videos(video_paths, output_path):
     """Smart concatenation: try fast path; fallback to standardization."""
     valid_videos = [p for p in video_paths if p and os.path.exists(p)]
     if not valid_videos:
-        print("No valid videos to merge.")
+        # print("No valid videos to merge.")
         return None
 
     if videos_have_same_properties(valid_videos):
         # Fast path: direct concat
         return fast_concatenate_videos(valid_videos, output_path)
     else:
-        print("Videos not standardized — normalizing...")
+        # print("Videos not standardized — normalizing...")
         temp_dir = tempfile.mkdtemp()
         standardized_paths = []
         for i, path in enumerate(valid_videos):
@@ -155,7 +156,7 @@ def save_labels_to_csv(labels, video_paths, output_csv_path):
         writer.writerow(['Label', 'VideoPath'])
         for label, path in zip(labels, video_paths):
             writer.writerow([label, path or "Not Found"])
-    print(f"Labels CSV saved to: {output_csv_path}")
+    # print(f"Labels CSV saved to: {output_csv_path}")
 
 # #add concatenated avatar videos path to the function argument
 # def search_word_videos_by_labels(directory, labels, concat_video_output_path):
@@ -196,35 +197,53 @@ def save_labels_to_csv(labels, video_paths, output_csv_path):
 def search_word_videos_by_labels(directory, labels, output_dir):
     """
     Search for avatar videos for concatenated labels first.
-    If not found, search word-by-word and merge found clips efficiently.
-    Save each merged output as numbered files (1.mp4, 2.mp4, etc.)
-    and record mappings (number, sentence) in a CSV file.
+    If not found, search word-by-word, merge clips, and save a new mapping.
+    Before merging, check CSV to see if this sentence already exists.
     """
     os.makedirs(output_dir, exist_ok=True)
 
     csv_output_path = os.path.join(output_dir, "output_mapping.csv")
     file_exists = os.path.exists(csv_output_path)
 
-    # Initialize CSV (create header if file doesn't exist)
+    # Construct sentence text from labels
+    sentence_text = " ".join(map(str, labels))
+    labels_concat = " ".join([str(label) for label in labels])
+
+    # ------------------------------------------------------
+    # 1. Check if full sentence avatar already exists
+    # ------------------------------------------------------
+    avatar_video = search_avatar_video_by_label(directory, labels_concat)
+    if avatar_video:
+        return avatar_video
+
+    # ------------------------------------------------------
+    # 2. Check CSV cache BEFORE merging
+    # ------------------------------------------------------
+    if file_exists:
+        with open(csv_output_path, "r", encoding="utf-8") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if row["Sentence"].strip() == sentence_text.strip():
+                    cached_path = row["VideoPath"]
+                    if cached_path and os.path.exists(cached_path):
+                        # print(f"Found cached merged video for: '{sentence_text}'")
+                        return cached_path
+
+    # ------------------------------------------------------
+    # 3. CSV is missing this sentence → need to merge
+    # ------------------------------------------------------
     with open(csv_output_path, 'a', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
+
+        # Write header if needed
         if not file_exists:
             writer.writerow(["ID", "Sentence", "VideoPath"])
 
-        # generate next ID based on number of rows
-        next_id = sum(1 for _ in open(csv_output_path, encoding='utf-8'))  # count lines
-        sentence_text = " ".join(map(str, labels))
+        # Compute next ID (count rows)
+        next_id = sum(1 for _ in open(csv_output_path, encoding='utf-8'))
         output_video_path = os.path.join(output_dir, f"{next_id}.mp4")
 
-        # Step 1: Check if full sentence avatar exists
-        labels_concat = " ".join([str(label) for label in labels])
-        avatar_video = search_avatar_video_by_label(directory, labels_concat)
-        if avatar_video:
-            writer.writerow([next_id, sentence_text, avatar_video])
-            print(f"✅ Found sentence avatar for '{sentence_text}', saved as {next_id}.mp4")
-            return avatar_video
-
-        # Step 2: Word-by-word fallback
+        # Collect available videos
         video_extensions = ('.mp4', '.avi', '.mov', '.mkv')
         label_to_files = {}
 
@@ -240,17 +259,17 @@ def search_word_videos_by_labels(directory, labels, output_dir):
             label_str = str(label)
             selected_video = random.choice(label_to_files[label_str]) if label_str in label_to_files else None
             matches.append(selected_video)
+            # print(f"Label '{label_str}' Video: {selected_video or 'Not Found'}")
 
+        # Merge videos
         merged_videos_path = concatenate_videos(matches, output_video_path)
+        # print(f"Merged video created at: {output_video_path}")
 
-        # Step 3: Save mapping (ID, sentence, video)
-        writer.writerow([next_id, sentence_text, merged_videos_path or "❌ Failed"])
-        print(f"📄 Mapping saved → ID:{next_id}, Sentence:'{sentence_text}'")
+        # Save CSV mapping
+        writer.writerow([next_id, sentence_text, merged_videos_path or "Failed"])
+        # print(f"Mapping saved: ID={next_id}, Sentence='{sentence_text}'")
 
         return merged_videos_path
-
-
-
 
 
 

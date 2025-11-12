@@ -75,7 +75,7 @@ docs = [
 
 # --- 4. Create vectorstore ---
 vectordb = Chroma.from_documents(docs, embedding=embedding_model, persist_directory="sign_retrieval_chroma")
-print("Vector store created successfully!")
+# print("Vector store created successfully!")
 vectordb.persist()
 
 # --- 5. Load vectorstore ---
@@ -119,7 +119,7 @@ def retrieve_video(user_input: str, similarity_threshold: float = 0.8):
     if results:
         doc, score = results[0]
         similarity = 1 - score
-        print(f"Sentence Similarity: {similarity:.3f}")
+        # print(f"Sentence Similarity: {similarity:.3f}")
 
         if similarity >= similarity_threshold:
             return {
@@ -128,10 +128,10 @@ def retrieve_video(user_input: str, similarity_threshold: float = 0.8):
             }
     
     # Step 2: Fallback - Word-by-word
-    print("Low similarity. Fallback to word-by-word matching...")
+    # print("Low similarity. Fallback to word-by-word matching...")
     
     cleaned_words = preprocess_text(user_input)
-    print(f"Cleaned important words: {cleaned_words}")
+    # print(f"Cleaned important words: {cleaned_words}")
 
     video_ids = []
 
@@ -141,14 +141,14 @@ def retrieve_video(user_input: str, similarity_threshold: float = 0.8):
         if word_results:
             doc, score = word_results[0]
             word_similarity = 1 - score
-            print(f"Word '{word}' ➔ Similarity {word_similarity:.3f}")
+            # print(f"Word '{word}' ➔ Similarity {word_similarity:.3f}")
 
             if word_similarity >= 0.63:
                 video_ids.append(doc.metadata.get("response", ""))
             else:
-                video_ids.append("No VideoID found")
+                video_ids.append("")
         else:
-            video_ids.append("No VideoID found")
+            video_ids.append("")
 
     return {
         "mode": "word-by-word",

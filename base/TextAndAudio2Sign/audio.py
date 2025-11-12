@@ -62,13 +62,13 @@ def retrieve_sentence_and_video_id(user_input: str, similarity_threshold: float 
     if results:
         doc, score = results[0]
         similarity = 1 - score
-        print(f"Sentence Similarity: {similarity:.3f}")
+        # print(f"Sentence Similarity: {similarity:.3f}")
         if similarity >= similarity_threshold:
-            return [doc.metadata.get("response", "No Video ID linked.")]
+            return [doc.metadata.get("response", "")]
 
-    print("⚡ Low similarity. Fallback to word-by-word matching...")
+    # print("Low similarity. Fallback to word-by-word matching...")
     cleaned_words = preprocess_text(user_input)
-    print(f"🧹 Cleaned important words: {cleaned_words}")
+    # print(f"Cleaned important words: {cleaned_words}")
 
     video_ids = []
 
@@ -77,13 +77,13 @@ def retrieve_sentence_and_video_id(user_input: str, similarity_threshold: float 
         if word_results:
             doc, score = word_results[0]
             word_similarity = 1 - score
-            print(f"Word '{word}' ➔ Similarity {word_similarity:.3f}")
+            # print(f"Word '{word}' ➔ Similarity {word_similarity:.3f}")
             if word_similarity >= 0.63:
-                video_ids.append(doc.metadata.get("response", "No VideoID found"))
+                video_ids.append(doc.metadata.get("response", ""))
             else:
-                video_ids.append("No VideoID found")
+                video_ids.append("")
         else:
-            video_ids.append("No VideoID found")
+            video_ids.append("")
 
     return video_ids
 
@@ -92,7 +92,7 @@ def retrieve_sentence_and_video_id(user_input: str, similarity_threshold: float 
 @lru_cache(maxsize=1)
 def get_whisper_model():
     """Load Whisper model only once, when first needed."""
-    print("Loading Whisper model...")
+    # print("Loading Whisper model...")
 
     # Absolute path to your downloaded model directory
     model_path = os.path.join(os.path.dirname(__file__), "models")
@@ -102,7 +102,7 @@ def get_whisper_model():
 
     # Load directly from local path (no re-download)
     model = WhisperModel(model_path, device="cpu")
-    print("Whisper model loaded successfully!")
+    # print("Whisper model loaded successfully!")
     return model
 
 def transcribe_audio_with_whisper(sr, audio):
@@ -110,7 +110,7 @@ def transcribe_audio_with_whisper(sr, audio):
     model = get_whisper_model()
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmpfile:
         wav.write(tmpfile.name, sr, (audio * 32767).astype(np.int16))
-        print("Transcribing...")
+        # print("Transcribing...")
         segments, info = model.transcribe(tmpfile.name)
         text = " ".join([segment.text for segment in segments])
         return text
@@ -118,16 +118,17 @@ def transcribe_audio_with_whisper(sr, audio):
 
 # === Step 5: Process audio file ===
 def process_audio_file(file_path):
-    print(f"Processing audio file: {file_path}")
+    # print(f"Processing audio file: {file_path}")
     model = get_whisper_model()
 
     # Transcription
     segments, info = model.transcribe(file_path)
     text = " ".join([segment.text for segment in segments])
-    print("Transcribed Text:\n", text)
+    # print("Transcribed Text:\n", text)
 
-    # Video retrieval
-    video_ids = retrieve_sentence_and_video_id(text)
-    print("Suggested Video IDs:", video_ids)
+    # # Video retrieval
+    # video_ids = retrieve_sentence_and_video_id(text)
+    # # print("Suggested Video IDs:", video_ids)
 
-    return text, video_ids
+    return text
+    # return text, video_ids
