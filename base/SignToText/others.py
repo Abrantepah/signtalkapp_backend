@@ -1,13 +1,13 @@
-import cv2
 import os
+import cv2
 import numpy as np
 import pickle
-import mediapipe as mp
-from sklearn.preprocessing import MinMaxScaler
-from torchvision import models, transforms
+from PIL import Image
 import torch
 import torch.nn as nn
-from PIL import Image
+from torchvision import models, transforms
+import mediapipe as mp
+from sklearn.preprocessing import MinMaxScaler
 
 # ============================================================
 # CONFIG
@@ -18,6 +18,14 @@ HAND_COUNT = 21
 EXPECTED_FEATURE_SIZE = 2582  # keypoints + CNN features
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# ============================================================
+# Paths
+# ============================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, "pretrained_models")
+os.makedirs(MODEL_DIR, exist_ok=True)
+XGB_DIR = os.path.join(BASE_DIR, "xgboost")
 
 # ============================================================
 # MediaPipe Holistic
@@ -42,27 +50,23 @@ transform = transforms.Compose([
                          std=[0.229, 0.224, 0.225])
 ])
 
+# Load ResNet50
 resnet = models.resnet50(weights=None)
-resnet.load_state_dict(torch.load(
-    r"C:\Users\Administrator\.cache\torch\hub\checkpoints\resnet50-0676ba61.pth",
-    map_location=device
-))
 resnet.fc = nn.Identity()
+resnet_path = os.path.join(MODEL_DIR, "resnet50.pth")
+resnet.load_state_dict(torch.load(resnet_path, map_location=device))
 resnet.to(device).eval()
 
+# Load EfficientNetB0
 efficientnet = models.efficientnet_b0(weights=None)
-efficientnet.load_state_dict(torch.load(
-    r"C:\Users\Administrator\.cache\torch\hub\checkpoints\efficientnet_b0_rwightman-7f5810bc.pth",
-    map_location=device
-))
 efficientnet.classifier = nn.Identity()
+efficientnet_path = os.path.join(MODEL_DIR, "efficientnet_b0.pth")
+efficientnet.load_state_dict(torch.load(efficientnet_path, map_location=device))
 efficientnet.to(device).eval()
 
 # ============================================================
 # CATEGORY → MODEL & ENCODER MAPPER
 # ============================================================
-BASE_PATH = os.path.join(os.path.dirname(__file__), "xgboost")
-
 CATEGORY_MODELS = {
     "laboratory":    ("xgboost_lab_model.pkl", "label_encoder_lab.pkl"),
     "child_welfare": ("xgboost_cw_model.pkl", "label_encoder_cw.pkl"),
@@ -111,14 +115,13 @@ def extract_cnn_features(frame_files):
         res_feats = resnet(imgs).mean(dim=0).cpu().numpy()
         eff_feats = efficientnet(imgs).mean(dim=0).cpu().numpy()
 
-    # Reduce to single value each to match training
     return np.array([res_feats.mean()]), np.array([eff_feats.mean()])
 
 # ============================================================
 # FRAMES → FEATURE VECTOR
 # ============================================================
 def process_frames_to_vector(frames):
-    temp_dir = "temp_cnn_frames"
+    temp_dir = os.path.join(BASE_DIR, "temp_cnn_frames")
     os.makedirs(temp_dir, exist_ok=True)
 
     keypoints_seq = []
@@ -159,10 +162,10 @@ def predict_translation_from_video(video_path, category: str):
         raise ValueError(f"Unknown category: {category}")
 
     model_file, encoder_file = CATEGORY_MODELS[category]
-    model_path = os.path.join(BASE_PATH, model_file)
-    encoder_path = os.path.join(BASE_PATH, encoder_file)
+    model_path = os.path.join(XGB_DIR, model_file)
+    encoder_path = os.path.join(XGB_DIR, encoder_file)
 
-    # Load .pkl model & encoder
+    # Load model & encoder
     with open(model_path, "rb") as f:
         model = pickle.load(f)
     with open(encoder_path, "rb") as f:
@@ -184,7 +187,7 @@ def predict_translation_from_video(video_path, category: str):
     # Extract full feature vector
     X = process_frames_to_vector(frames)
 
-    # Check shape matches training
+    # Check shape
     if X.shape[1] != EXPECTED_FEATURE_SIZE:
         return f"[Shape mismatch: Expected {EXPECTED_FEATURE_SIZE}, got {X.shape[1]}]"
 

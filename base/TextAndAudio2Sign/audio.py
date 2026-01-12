@@ -10,8 +10,8 @@ import pandas as pd
 import nltk
 import pickle
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
-from langchain.schema import Document
-from langchain.vectorstores import FAISS, Chroma
+from langchain_core.documents import Document
+from langchain_community.vectorstores import FAISS, Chroma
 from nltk.stem import WordNetLemmatizer
 
 # === Step 1: Setup ===

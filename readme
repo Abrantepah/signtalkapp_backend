@@ -1,0 +1,79 @@
+python 3.12.3
+pip freeze > requirements.txt
+
+
+find nginx config in 
+
+####### signtalk backend starts #############
+sudo nano /etc/nginx/sites-available/signtalk_app
+#create a symlink
+sudo ln -s /etc/nginx/sites-available/signtalk_app /etc/nginx/sites-enabled/
+
+#test ngnix
+sudo nginx -t
+
+#restart nginx
+sudo systemctl restart nginx
+
+#request nginx cert
+sudo certbot --nginx
+
+#edit gunicorn.service
+sudo nano /etc/systemd/system/gunicorn.service
+
+####### signtalk backend section ends ##########
+
+#### +++++++++++++++++++++++++++++++++++++++ #######
+
+####### servipac backend starts ##########
+
+sudo nano /etc/systemd/system/gunicorn_servipac.service
+## then point to gunicorn socket
+
+## restart gunicorn servipac service after any changes
+sudo systemctl restart gunicorn_servipac
+
+sudo nano /etc/nginx/sites-available/servipac
+
+sudo ln -s /etc/nginx/sites-available/servipac /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+sudo nano /etc/systemd/system/gunicorn_servipac.service
+
+
+
+###### servipac backend sections ends ###########
+
+sudo systemctl daemon-reload
+sudo systemctl start gunicorn
+sudo systemctl status gunicorn # Verify it is active (running)
+sudo systemctl restart nginx   # Restart Nginx to be safe
+sudo systemctl enable gunicorn #enable gunicorn permanently
+
+
+
+understand setting up a django application: Client (browser) -> Nginx -> Gunicorn socket (.sock) -> Gunicorn -> Django app -> Response back
+
+
+Each Django project → own Gunicorn service.
+
+Gunicorn creates a .sock file.
+
+.sock files go in /run/gunicorn/.
+
+Give /run/gunicorn/ proper permissions.
+
+Nginx reads .sock to serve website.
+
+Each project → own service, socket, Nginx config.
+
+Start and enable service with systemctl. 
+
+
+######--- run this after updating code ---######
+source venv/bin/activate
+python manage.py migrate
+python manage.py collectstatic --noinput
+sudo systemctl restart gunicorn
+sudo systemctl reload nginx

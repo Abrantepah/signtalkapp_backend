@@ -32,9 +32,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://www.signtalkgh.com",
     "http://localhost:58324",
     "http://127.0.0.1:58324",
-    "http://localhost:3000",
-    "http://78.46.100.152"
-    
+    "http://localhost:3000",   
 ]
 
 ALLOWED_HOSTS = [
@@ -42,7 +40,6 @@ ALLOWED_HOSTS = [
     "www.signtalkgh.com",
     "127.0.0.1",
     "localhost",
-    "78.46.100.152",
 ]
 
 
@@ -149,7 +146,7 @@ STATIC_URL = 'static/'
 
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = r'C:\Users\Administrator\Desktop\datasets'
+MEDIA_ROOT = '/var/www/projects/datasets'
 
 
 # Default primary key field type
