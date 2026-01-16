@@ -25,22 +25,19 @@ SECRET_KEY = 'django-insecure-#+8cbw#zna=(i)#f@21&69cdi!&&e^wm4!e78y&emqx$_@6yuu
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-CORS_ALLOW_ALL_ORIGINS = False  # better security
+CORS_ALLOW_ALL_ORIGINS = True  # better security
 
-CORS_ALLOWED_ORIGINS = [
-    "https://signtalkgh.com",
-    "https://www.signtalkgh.com",
-    "http://localhost:58324",
-    "http://127.0.0.1:58324",
-    "http://localhost:3000",   
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "https://signtalkgh.com",
+#     "https://www.signtalkgh.com",
+# ]
 
-ALLOWED_HOSTS = [
-    "signtalkgh.com",
-    "www.signtalkgh.com",
-    "127.0.0.1",
-    "localhost",
-]
+# ALLOWED_HOSTS = [
+#     "signtalkgh.com",
+#     "www.signtalkgh.com",
+# ]
+
+ALLOWED_HOSTS = ['*']  # for testing only
 
 
 # Application definition
@@ -54,8 +51,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'base',
     'rest_framework',
-    'corsheaders'
+    'corsheaders',
+    'channels'
 ]
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -63,6 +62,12 @@ REST_FRAMEWORK = {
     ),
 }
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+        # Use Redis in production
+    }
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
