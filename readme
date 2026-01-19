@@ -77,3 +77,72 @@ python manage.py migrate
 python manage.py collectstatic --noinput
 sudo systemctl restart gunicorn
 sudo systemctl reload nginx
+
+## read logs 
+sudo journalctl -u daphne -f
+
+
+
+### working signtalk backend nginx config ###
+# server {
+#     listen 443 ssl;
+#     server_name signtalkgh.com www.signtalkgh.com;
+
+#     ssl_certificate /etc/letsencrypt/live/signtalkgh.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/signtalkgh.com/privkey.pem;
+#     include /etc/letsencrypt/options-ssl-nginx.conf;
+#     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+#     # 1️⃣ Flutter Web Frontend
+#     location / {
+#         root /var/www/projects/web;
+#         index index.html;
+#         try_files $uri $uri/ /index.html;
+#     }
+
+#     # 2️⃣ Django REST API
+#     location /api/ {
+#         proxy_pass http://unix:/run/gunicorn/gunicorn.sock;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#     }
+
+#     # 3️⃣ WebSockets for Channels/Daphne
+#     location /ws/ {
+#         proxy_pass http://unix:/run/daphne/daphne.sock;
+#         proxy_http_version 1.1;
+#         proxy_set_header Upgrade $http_upgrade;
+#         proxy_set_header Connection "Upgrade";
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_read_timeout 86400;
+#         proxy_send_timeout 86400;
+#     }
+
+#     # 4️⃣ Media files
+#     location /media/ {
+#         alias /var/www/projects/datasets/;
+#         expires 30d;
+#     }
+
+#     location = /favicon.ico {
+#         access_log off;
+#         log_not_found off;
+#     }
+# }
+
+# # Redirect HTTP to HTTPS
+# server {
+#     listen 80;
+#     server_name signtalkgh.com www.signtalkgh.com;
+#     return 301 https://$host$request_uri;
+# }
+
+# server {
+#     listen 80 default_server;
+#     server_name 168.119.162.34;
+#     return 301 https://signtalkgh.com$request_uri;
+# }
+

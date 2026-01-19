@@ -26,7 +26,7 @@ from asgiref.sync import async_to_sync
 
 #import the necessary modules from base
 from base.TextAndAudio2Sign import text_2_sign, audio, search_video
-from base.SignToText import general_conversation, others
+from base.SignToText import general_conversation, others, new_model_inference
 
 @api_view(['POST'])
 def generate_code(request):
@@ -289,7 +289,7 @@ def sign_to_text_api(request):
     """
     try:
         video_file = request.FILES.get("video")
-        category = request.data.get("category", "general")  # default to 'general'
+        category = request.data.get("category", "full")  # default to 'general_conversion'
 
         if not video_file:
             return Response(
@@ -305,12 +305,12 @@ def sign_to_text_api(request):
             tmpfile_path = tmpfile.name
 
         # Run prediction pipeline with category
-        if category == "general":
-            # Use general model
-            translation_text = general_conversation.predict_translation_from_video(tmpfile_path)
-        else:
-            # Use category-specific model
-            translation_text = others.predict_translation_from_video(tmpfile_path, category)
+        # if category == "general":
+        #     # Use general model
+        #     translation_text = general_conversation.predict_translation_from_video(tmpfile_path)
+        # else:
+        #     # Use category-specific model
+        translation_text = new_model_inference.predict_from_video(tmpfile_path, category)
 
         # Cleanup
         os.remove(tmpfile_path)

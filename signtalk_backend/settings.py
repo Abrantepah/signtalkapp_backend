@@ -27,22 +27,23 @@ DEBUG = False
 
 CORS_ALLOW_ALL_ORIGINS = True  # better security
 
-# CORS_ALLOWED_ORIGINS = [
-#     "https://signtalkgh.com",
-#     "https://www.signtalkgh.com",
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "https://signtalkgh.com",
+    "https://www.signtalkgh.com",
+]
 
-# ALLOWED_HOSTS = [
-#     "signtalkgh.com",
-#     "www.signtalkgh.com",
-# ]
+ALLOWED_HOSTS = [
+    "signtalkgh.com",
+    "www.signtalkgh.com",
+]
 
-ALLOWED_HOSTS = ['*']  # for testing only
+# ALLOWED_HOSTS = ['*']  # for testing only
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -64,9 +65,11 @@ REST_FRAMEWORK = {
 
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-        # Use Redis in production
-    }
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
 }
 
 MIDDLEWARE = [
@@ -99,6 +102,9 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'signtalk_backend.wsgi.application'
+
+
+ASGI_APPLICATION = 'signtalk_backend.asgi.application'
 
 
 # Database
