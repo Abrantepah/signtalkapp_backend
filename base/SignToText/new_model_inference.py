@@ -32,12 +32,12 @@ CATEGORY_MODELS = {
         "label_encoder": "sign_label_best_gen_encoder.pkl",
     },
     "patient_story": {
-        "model_path": "sign_transformer_best_patstory_model.pt",
-        "label_encoder": "sign_label_best_patstory_encoder.pkl",
+        "model_path": "sign_transformer_best_patstory04_model.pt",
+        "label_encoder": "sign_label_best_patstory04_encoder.pkl",
     },
     "full": {  
-        "model_path": "sign_transformer_best_full03_model.pt",
-        "label_encoder": "sign_label_best_full03_encoder.pkl",
+        "model_path": "sign_transformer_best_full04_model.pt",
+        "label_encoder": "sign_label_best_full04_encoder.pkl",
     },
 }
 
